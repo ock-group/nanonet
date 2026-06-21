@@ -1,5 +1,7 @@
 # nanonet
 
+[![CI](https://github.com/ock-group/nanonet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ock-group/nanonet/actions/workflows/ci.yml)
+
 A Python package for simulating nanoparticle necklace films as spatial graphs, with an interactive web platform for real-time network exploration.
 
 Nanoparticle necklace films are modelled as random geometric graphs where **nodes** are voltage-activated junctions and **edges** are nanoparticle chain segments. Current transport is solved via Kirchhoff nodal analysis, and the nonlinear I–V characteristics are fitted to a power-law model across three distinct conduction phases.
