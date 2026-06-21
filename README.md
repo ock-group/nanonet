@@ -1,6 +1,7 @@
 # nanonet
 
 [![CI](https://github.com/ock-group/nanonet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ock-group/nanonet/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Python package for simulating nanoparticle necklace films as spatial graphs, with an interactive web platform for real-time network exploration.
 
