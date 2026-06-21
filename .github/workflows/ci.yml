@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install dash plotly
+
+      - name: Smoke test — build network and run I-V sweep
+        run: |
+          python - <<'EOF'
+          from nanonet import NanoparticleNetwork, sweep
+
+          net = NanoparticleNetwork(L=1.0, N=100, mu_a=6.0, std_a=3.0).build(seed=42)
+          assert net.G.number_of_nodes() > 0, "No nodes built"
+          assert net.source_nodes, "No source nodes"
+          assert net.drain_nodes, "No drain nodes"
+
+          iv = net.iv_curve(V_start=0.0, V_max=16.0, V_step=0.5)
+          assert len(iv["voltages"]) > 0, "Empty IV curve"
+
+          evo = sweep(net, 0.0, 16.0, 0.5, effective_resistance=False, algebraic_connectivity=False)
+          assert len(evo["rows"]) > 0, "Empty sweep"
+
+          print(f"OK — {net.G.number_of_nodes()} nodes, "
+                f"{net.G.number_of_edges()} edges, "
+                f"threshold_voltage={iv['threshold_voltage']}")
+          EOF
+
+      - name: Smoke test — app imports cleanly
+        run: python -c "import app; print('app import OK')"
