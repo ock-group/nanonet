@@ -19,8 +19,8 @@ The film is represented as a 2D graph embedded in a normalised domain. Each node
 | Void fraction | $f_v$ | Area fraction occupied by insulating voids |
 | Mean activation voltage | $\mu_a$ | Mean of the $V_a$ distribution [V] |
 | Std activation voltage | $\sigma_a$ | Standard deviation of the $V_a$ distribution [V] |
-| Edge resistance constant | `edge_k` | $R_\text{edge} = \text{edge\_k} \times d$ [Ω/m] |
-| Node resistance scale | `node_r_scale` | $R_\text{node} = \text{node\_r\_scale} \times \max(V_a, r_\text{floor})$ [Ω/V] |
+| Edge resistance constant | `edge_k` | $R_\mathrm{edge} =$ `edge_k` $\times\ d$ [Ω/m] |
+| Node resistance scale | `node_r_scale` | $R_\mathrm{node} =$ `node_r_scale` $\times \max(V_a, r_\mathrm{floor})$ [Ω/V] |
 
 **I–V phases**
 
@@ -84,7 +84,7 @@ Then open **http://127.0.0.1:8050** in your browser.
 | Network Geometry | $L$, $N$, $f_v$, connection radius, source/drain fraction |
 | Activation Voltage | $\mu_a$, $\sigma_a$ |
 | Resistance Model | `edge_k`, `node_r_scale` |
-| Voltage Sweep | $V_\text{start}$, $V_\text{max}$, $V_\text{step}$ |
+| Voltage Sweep | $V_\mathrm{start}$, $V_\mathrm{max}$, $V_\mathrm{step}$ |
 | Reproducibility | Random seed |
 
 **Buttons**
@@ -147,6 +147,3 @@ Available sweep runners:
 
 ---
 
-## License
-
-See `LICENSE`.
