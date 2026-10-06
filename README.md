@@ -9,39 +9,77 @@ This release synchronizes the reusable package with the corrected V14 model deve
 
 ## Corrected transport model
 
-The network is a spatial random graph. Junction (i) has a phenomenological activation voltage (V_{a,i}). It becomes electrically available when
+The network is represented as a spatial random graph. Each junction `i` is assigned a microscopic activation voltage `Va_i`, while each graph edge represents a nanoparticle-chain connection.
 
-[
-V_{a,i} le V.
-]
+### Voltage-dependent activation
 
-Activation and resistance are **independent**. A junction has a fixed resistance
+Each junction `i` is active when
 
-[
-R_{mathrm{node},i}=R_{mathrm{node}},
-]
+```text
+Va_i <= V
+```
 
-and an active connection (i-j) uses
+where `V` is the applied device voltage.
 
-[
-R_{ij}=R_{mathrm{edge},ij}
-+rac{1}{2}R_{mathrm{node},i}
-+rac{1}{2}R_{mathrm{node},j},
-]
+An edge is electrically available only when both endpoint junctions are active. This is a phenomenological global-voltage gating rule; activation is not solved self-consistently from the local voltage drop.
 
-with electrode-node junction resistance omitted. The resulting passive circuit is represented by one symmetric conductance-weighted Laplacian and solved using Kirchhoff nodal analysis.
+### Resistance model
 
-The same solution is used for device current, source current, drain current, edge currents, effective resistance, and spectral diagnostics.
+The geometric resistance of an edge is
+
+```text
+R_edge,ij = edge_k * distance_ij
+```
+
+The junction resistance is fixed and independent of `Va_i`:
+
+```text
+R_node = node_resistance_ohm
+```
+
+For each active undirected connection, the solver uses the symmetric total resistance
+
+```text
+R_tot,ij = R_edge,ij + (R_i + R_j)/2
+g_ij     = 1/R_tot,ij
+```
+
+Electrode-contact nodes contribute zero junction resistance. This formulation keeps activation timing separate from electrical resistance and avoids orientation-dependent split-node artifacts.
+
+### Kirchhoff solution
+
+Only active connected components that touch both electrode sets are included in the electrical solve. The conductances form a symmetric weighted graph Laplacian `G`:
+
+```text
+G_ii = sum_j g_ij
+G_ij = -g_ij
+```
+
+Source-contact nodes are fixed at `V`, drain-contact nodes at `0`, and the internal node potentials are obtained from the sparse nodal system.
+
+Every edge current is reconstructed from that same solution:
+
+```text
+I_ij = g_ij * (phi_i - phi_j)
+```
+
+Source and drain boundary currents are calculated independently. The reported device current is their symmetric average:
+
+```text
+I(V) = (|I_source| + |I_drain|)/2
+```
+
+The absolute source-drain difference is retained as a current-conservation diagnostic.
 
 ### Production defaults
 
 | Parameter | Default |
 |---|---:|
-| Junction count (N) | 500 |
-| Connection radius (r_c) | 0.15 |
-| Domain | (1	imes1) |
-| Edge resistance constant | (2.0	imes10^{10}) |
-| Fixed junction resistance | (3.5	imes10^9 Omega) |
+| Junction count `N` | 500 |
+| Connection radius `r_c` | 0.15 |
+| Domain | 1 × 1 |
+| Edge resistance constant | 2.0 × 10^10 |
+| Fixed junction resistance | 3.5 × 10^9 Ω |
 | Source / drain strips | 0.15 / 0.15 |
 | Voltage sweep | 0–16 V in 0.5 V steps |
 | Activation bounds | 0–20 V |
@@ -51,72 +89,88 @@ See `optimized_config.yaml`.
 
 ## Threshold and nonlinear fit convention
 
-The transport threshold is not a free fit parameter. It is defined as the first sampled source-drain percolation voltage:
+The macroscopic transport threshold is defined directly from the sampled simulation:
 
-[
-V_T equiv V_{mathrm{perc}}.
-]
+```text
+V_T ≡ V_perc
+```
 
-The nonlinear region is fitted to
+`V_perc` is the first sampled voltage at which the active network spans source to drain and current becomes nonzero. It is not refitted as a free parameter.
 
-[
-I=A(V-V_T)^zeta
-]
+Above this threshold, the nonlinear region is described by
 
-using only positive-current points strictly above (V_T). (V_T) remains fixed while (A) and (zeta) are fitted. The upper fit boundary is the first voltage at which 90% of nodes are active; if that point is not reached, the configured fit-window limit is used.
+```text
+I = A * (V - V_T)^ζ
+```
+
+with `V_T` held fixed. Only `A` and `ζ` are fitted.
+
+The threshold point itself is excluded because `log(V - V_T)` is undefined at `V = V_T`. The fit ends when 90% of the nodes are active; if 90% activation is not reached, the available fit window is used up to the configured maximum width.
+
+The compatibility field `fit_V_T_V` is therefore identical to `percolation_voltage_V`.
 
 ## Current participation ratio
 
 The package reports the current participation ratio
 
-[
-N_{mathrm{eff}}
-=
-rac{left(sum_e |I_e|ight)^2}
-     {sum_e I_e^2}.
-]
+```text
+N_eff = (sum_e |I_e|)^2 / sum_e I_e^2
+```
 
-It estimates the effective number of conducting edges sharing the current. A small (N_{mathrm{eff}}) means strongly localized transport; a larger value means current is distributed across more of the conducting network.
+`N_eff` estimates the effective number of conducting edges sharing the current.
+
+- Small `N_eff`: strongly localized transport through relatively few edges.
+- Large `N_eff`: current is distributed across a broader conducting backbone.
 
 The sweep table exposes the same quantity as `participation_ratio`, `current_participation_ratio`, and `N_eff` for compatibility.
 
 ## Independent pathways
 
-At (V_{mathrm{perc}}), `nanonet` reports the maximum number of **edge-disjoint** source-to-drain transport channels. It is computed using a unit-capacity max-flow/min-cut calculation and is not a count of all simple paths.
+At `V_perc`, `nanonet` reports the maximum number of **edge-disjoint** source-to-drain transport channels.
+
+This is calculated using a unit-capacity max-flow/min-cut calculation rather than enumerating all simple paths.
 
 ## Spectral diagnostics
 
-Spectral quantities come from the exact same active-circuit Laplacian used for transport. Raw (lambda_2) therefore has conductance units:
+Spectral quantities come from the exact same active-circuit Laplacian used for transport.
 
-[
-[lambda_2]=mathrm{S}.
-]
+The raw algebraic-connectivity quantity is reported as
 
-The package also reports (lambda_2/lambda_{max}) as a dimensionless spectral-gap ratio.
+```text
+λ₂ [S]
+```
+
+because the Laplacian is conductance weighted. The package also reports the dimensionless spectral-gap ratio
+
+```text
+λ₂ / λ_max
+```
 
 ## Density studies
 
-When (N) is varied, the domain and connection radius remain fixed. The standard density studies use
+When `N` is varied, the domain and connection radius remain fixed:
 
-[
-r_c=0.15
-]
+```text
+r_c = 0.15
+```
 
-for every (N). No (N^{-1/2}) radius rescaling is applied.
+for `N = 200, 400, 600, 800`.
+
+Increasing `N` therefore increases network density, the number of nearby neighbors, and the number of edges. The older `N^(-1/2)` radius scaling is not used.
 
 Two density runners are available:
 
-- `run_sweep_vary_N_mean`: crossed (N	imeslangle V_aangle) study at fixed (sigma_a)
-- `run_sweep_vary_N`: (N)-only study at fixed (langle V_aangle) and (sigma_a)
+- `run_sweep_vary_N_mean`: crossed `N × <Va>` study at fixed `σ_a`
+- `run_sweep_vary_N`: `N`-only study at fixed `<Va>` and `σ_a`
 
 ## Void fraction
 
-For random-void simulations the package stores both:
+For random-void simulations, the package stores both:
 
 - `void_fraction_requested`
 - `void_fraction_achieved`
 
-The achieved value is estimated from the union of the void areas, so overlaps are counted only once.
+The achieved value is estimated from the union of the void areas, so overlapping voids are counted only once.
 
 ## Installation
 
@@ -164,7 +218,10 @@ for row in result["rows"]:
         print("V =", row["V"])
         print("I =", row["total_current_A"])
         print("N_eff =", row["N_eff"])
-        print("edge-disjoint pathways =", row["edge_disjoint_pathways_at_Vperc"])
+        print(
+            "edge-disjoint pathways =",
+            row["edge_disjoint_pathways_at_Vperc"],
+        )
         break
 ```
 
@@ -199,7 +256,9 @@ python app.py
 
 and open `http://127.0.0.1:8050`.
 
-The resistance control is **Junction resistance [Ω]** rather than an activation-dependent resistance scale. The web app uses the same fixed-(V_T) fit convention and the same conductance-weighted circuit Laplacian as the package solver.
+The resistance control is **Junction resistance [Ω]** rather than an activation-dependent resistance scale.
+
+The web app uses the same fixed-`V_T` convention and the same conductance-weighted circuit Laplacian as the package solver. Its spectral panel reports `λ₂ [S]`.
 
 ## Package structure
 
@@ -237,11 +296,11 @@ The synchronized research implementation is associated with:
 
 ```bibtex
 @article{issakah2026nanonecklace,
-  title={Graph-Based Kirchhoff Modeling of Non-Ohmic Electron Transport in Self-Assembled Nanonecklace Networks},
-  author={Issakah, Obed and Badrinarayanan, Srivathsan and Saraf, Ravi F. and Ock, Janghoon},
-  journal={arXiv preprint arXiv:2607.03698},
-  year={2026},
-  doi={10.48550/arXiv.2607.03698}
+  title   = {Graph-Based Kirchhoff Modeling of Non-Ohmic Electron Transport in Self-Assembled Nanonecklace Networks},
+  author  = {Issakah, Obed and Badrinarayanan, Srivathsan and Saraf, Ravi F. and Ock, Janghoon},
+  journal = {arXiv preprint arXiv:2607.03698},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2607.03698}
 }
 ```
 
