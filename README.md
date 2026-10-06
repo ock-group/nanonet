@@ -7,7 +7,7 @@
 
 This release synchronizes the reusable package with the corrected V14 model developed in [graph-based-nanoparticle-necklace-network](https://github.com/oissakah/graph-based-nanoparticle-necklace-network).
 
-## Corrected transport model
+## Transport model
 
 The network is represented as a spatial random graph. Each junction `i` is assigned a microscopic activation voltage `V_a,i`, while each graph edge represents a nanoparticle-chain connection.
 
