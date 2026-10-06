@@ -9,15 +9,13 @@ This release synchronizes the reusable package with the corrected V14 model deve
 
 ## Corrected transport model
 
-The network is represented as a spatial random graph. Each junction `i` is assigned a microscopic activation voltage `Va_i`, while each graph edge represents a nanoparticle-chain connection.
+The network is represented as a spatial random graph. Each junction `i` is assigned a microscopic activation voltage `V_a,i`, while each graph edge represents a nanoparticle-chain connection.
 
 ### Voltage-dependent activation
 
-Each junction `i` is active when
+Each junction is electrically active when:
 
-```text
-Va_i <= V
-```
+<p align="center"><strong>V<sub>a,i</sub> ≤ V</strong></p>
 
 where `V` is the applied device voltage.
 
@@ -25,24 +23,22 @@ An edge is electrically available only when both endpoint junctions are active. 
 
 ### Resistance model
 
-The geometric resistance of an edge is
+The geometric resistance of an edge is:
 
-```text
-R_edge,ij = edge_k * distance_ij
-```
+<p align="center"><strong>R<sub>edge,ij</sub> = k<sub>edge</sub> d<sub>ij</sub></strong></p>
 
-The junction resistance is fixed and independent of `Va_i`:
+The junction resistance is fixed and independent of activation voltage:
 
-```text
-R_node = node_resistance_ohm
-```
+<p align="center"><strong>R<sub>node</sub> = R<sub>junction</sub></strong></p>
 
-For each active undirected connection, the solver uses the symmetric total resistance
+In the implementation, `R_junction` is specified by `node_resistance_ohm`.
 
-```text
-R_tot,ij = R_edge,ij + (R_i + R_j)/2
-g_ij     = 1/R_tot,ij
-```
+For each active undirected connection, the solver uses the symmetric total resistance:
+
+<p align="center">
+<strong>R<sub>tot,ij</sub> = R<sub>edge,ij</sub> + (R<sub>i</sub> + R<sub>j</sub>)/2</strong><br>
+<strong>g<sub>ij</sub> = 1 / R<sub>tot,ij</sub></strong>
+</p>
 
 Electrode-contact nodes contribute zero junction resistance. This formulation keeps activation timing separate from electrical resistance and avoids orientation-dependent split-node artifacts.
 
@@ -50,24 +46,20 @@ Electrode-contact nodes contribute zero junction resistance. This formulation ke
 
 Only active connected components that touch both electrode sets are included in the electrical solve. The conductances form a symmetric weighted graph Laplacian `G`:
 
-```text
-G_ii = sum_j g_ij
-G_ij = -g_ij
-```
+<p align="center">
+<strong>G<sub>ii</sub> = Σ<sub>j</sub> g<sub>ij</sub></strong><br>
+<strong>G<sub>ij</sub> = −g<sub>ij</sub>, &nbsp; i ≠ j</strong>
+</p>
 
 Source-contact nodes are fixed at `V`, drain-contact nodes at `0`, and the internal node potentials are obtained from the sparse nodal system.
 
 Every edge current is reconstructed from that same solution:
 
-```text
-I_ij = g_ij * (phi_i - phi_j)
-```
+<p align="center"><strong>I<sub>ij</sub> = g<sub>ij</sub>(φ<sub>i</sub> − φ<sub>j</sub>)</strong></p>
 
 Source and drain boundary currents are calculated independently. The reported device current is their symmetric average:
 
-```text
-I(V) = (|I_source| + |I_drain|)/2
-```
+<p align="center"><strong>I(V) = (|I<sub>source</sub>| + |I<sub>drain</sub>|) / 2</strong></p>
 
 The absolute source-drain difference is retained as a current-conservation diagnostic.
 
@@ -78,8 +70,8 @@ The absolute source-drain difference is retained as a current-conservation diagn
 | Junction count `N` | 500 |
 | Connection radius `r_c` | 0.15 |
 | Domain | 1 × 1 |
-| Edge resistance constant | 2.0 × 10^10 |
-| Fixed junction resistance | 3.5 × 10^9 Ω |
+| Edge resistance constant | 2.0 × 10¹⁰ |
+| Fixed junction resistance | 3.5 × 10⁹ Ω |
 | Source / drain strips | 0.15 / 0.15 |
 | Voltage sweep | 0–16 V in 0.5 V steps |
 | Activation bounds | 0–20 V |
@@ -89,33 +81,27 @@ See `optimized_config.yaml`.
 
 ## Threshold and nonlinear fit convention
 
-The macroscopic transport threshold is defined directly from the sampled simulation:
+The transport threshold is not a free fit parameter. It is defined as the first sampled source-drain percolation voltage:
 
-```text
-V_T ≡ V_perc
-```
+<p align="center"><strong>V<sub>T</sub> ≡ V<sub>perc</sub></strong></p>
 
 `V_perc` is the first sampled voltage at which the active network spans source to drain and current becomes nonzero. It is not refitted as a free parameter.
 
-Above this threshold, the nonlinear region is described by
+Above this threshold, the nonlinear region is described by:
 
-```text
-I = A * (V - V_T)^ζ
-```
+<p align="center"><strong>I = A(V − V<sub>T</sub>)<sup>ζ</sup></strong></p>
 
 with `V_T` held fixed. Only `A` and `ζ` are fitted.
 
-The threshold point itself is excluded because `log(V - V_T)` is undefined at `V = V_T`. The fit ends when 90% of the nodes are active; if 90% activation is not reached, the available fit window is used up to the configured maximum width.
+The threshold point itself is excluded because `log(V − V_T)` is undefined at `V = V_T`. The fit ends when 90% of the nodes are active; if 90% activation is not reached, the available fit window is used up to the configured maximum width.
 
 The compatibility field `fit_V_T_V` is therefore identical to `percolation_voltage_V`.
 
 ## Current participation ratio
 
-The package reports the current participation ratio
+The package reports the current participation ratio:
 
-```text
-N_eff = (sum_e |I_e|)^2 / sum_e I_e^2
-```
+<p align="center"><strong>N<sub>eff</sub> = (Σ<sub>e</sub> |I<sub>e</sub>|)² / Σ<sub>e</sub> I<sub>e</sub>²</strong></p>
 
 `N_eff` estimates the effective number of conducting edges sharing the current.
 
@@ -134,34 +120,32 @@ This is calculated using a unit-capacity max-flow/min-cut calculation rather tha
 
 Spectral quantities come from the exact same active-circuit Laplacian used for transport.
 
-The raw algebraic-connectivity quantity is reported as
+The raw algebraic-connectivity quantity is:
 
-```text
-λ₂ [S]
-```
+<p align="center"><strong>λ₂ [S]</strong></p>
 
-because the Laplacian is conductance weighted. The package also reports the dimensionless spectral-gap ratio
+because the Laplacian is conductance weighted.
 
-```text
-λ₂ / λ_max
-```
+The dimensionless spectral-gap ratio is:
+
+<p align="center"><strong>λ₂ / λ<sub>max</sub></strong></p>
 
 ## Density studies
 
 When `N` is varied, the domain and connection radius remain fixed:
 
-```text
-r_c = 0.15
-```
+<p align="center"><strong>r<sub>c</sub> = 0.15</strong></p>
 
-for `N = 200, 400, 600, 800`.
+for:
 
-Increasing `N` therefore increases network density, the number of nearby neighbors, and the number of edges. The older `N^(-1/2)` radius scaling is not used.
+<p align="center"><strong>N = 200, 400, 600, 800</strong></p>
+
+Increasing `N` therefore increases network density, the number of nearby neighbors, and the number of edges. The older `N<sup>−1/2</sup>` radius scaling is not used.
 
 Two density runners are available:
 
-- `run_sweep_vary_N_mean`: crossed `N × <Va>` study at fixed `σ_a`
-- `run_sweep_vary_N`: `N`-only study at fixed `<Va>` and `σ_a`
+- `run_sweep_vary_N_mean`: crossed `N × ⟨V_a⟩` study at fixed `σ_a`
+- `run_sweep_vary_N`: `N`-only study at fixed `⟨V_a⟩` and `σ_a`
 
 ## Void fraction
 
